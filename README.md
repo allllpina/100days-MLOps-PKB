@@ -12,3 +12,4 @@ These notes are structured modularly by core technologies and concepts to serve 
   `Cookiecutter`, `Make`, `pre-commit`, `build`
 * **[03. Data Versioning and Pipelines](03_Data_Versioning_and_Pipelines_DVC.md)** *(Days 10-19)*
   `DVC`, `Git`
+* **[04. Experiment Tracking and Registry (MLflow)](04_Experiment_Tracking_and_Registry_MLflow)** _(Days 20-30)_ `MLflow`, `SQLite`

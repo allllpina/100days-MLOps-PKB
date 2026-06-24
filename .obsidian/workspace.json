@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "README.md",
+                "file": "04_Experiment_Tracking_and_Registry_MLflow.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "README"
+              "title": "04_Experiment_Tracking_and_Registry_MLflow"
             }
           }
         ]
@@ -185,10 +185,10 @@
   },
   "active": "cd0fef8ccf037f16",
   "lastOpenFiles": [
-    "02_Project_Architecture_and_Quality.md",
-    "03_Data_Versioning_and_Pipelines_DVC.md",
     "README.md",
     "03_Data_Versioning_and_Pipelines_DVC.md",
+    "04_Experiment_Tracking_and_Registry_MLflow.md",
+    "02_Project_Architecture_and_Quality.md",
     "01_Environment_and_Dependencies.md",
     "Templates/Daily_MLOps.md",
     "a.out",
