@@ -79,6 +79,56 @@ with mlflow.start_run():
 	# You can still manually log custom business metrics alongside autologging
 	mlflow.log_metric("custom_business_score", 0.95)
 ```
+### 5. Model Lifecycle: Logged vs. Registered Models
+Understanding the strict architectural boundary between Data Science experimentation and DevOps production deployment.
+
+#### 🧠 Concept Breakdown: The 3 Stages of Model Handoff
+
+**1. Logged Model (The "Laboratory")**
+* **What it is:** When you run `mlflow.sklearn.log_model()` or use autologging, MLflow creates an artifact folder inside a specific Run.
+* **Contents:** It contains the serialized model (e.g., `model.pkl`), environment requirements (`requirements.txt`, `conda.yaml`), and the `MLmodel` manifest.
+* **Purpose:** It is strictly an archive of an experiment. It sits alongside hundreds of other failed or successful iterations in the "Experiments" tab.
+
+**2. Registered Model (The "Showcase" & Contract)**
+* **What it is:** You cannot deploy a model using a raw path like `/runs/a1b2c3/artifacts/model`—it is unreliable. Instead, you "Register" the model.
+* **How it works:** Registering creates a top-level logical entity (e.g., `fraud-detector`). It does *not* copy the model files. It simply creates a **Version** (e.g., `v1`) that acts as a pointer back to the Logged Model's artifacts. 
+* **Purpose:** It acts as a clean, organized catalog of only the best, production-ready models.
+
+**3. Separation of Concerns (DS vs. DevOps)**
+The Model Registry serves as the official API/Contract between teams:
+* **Data Scientist (DS):** Works entirely in the *Runs/Experiments* view. Analyzes metrics. When they find the best model, they register it and assign a semantic tag/alias (e.g., `@champion`). They guarantee the model's predictive quality.
+* **DevOps / Platform Engineer:** *Never* opens the Experiments tab. They write CI/CD pipelines that blindly request the model using its name and alias (`models:/fraud-detector@champion`). They don't care about hyperparameters; they only care about wrapping the downloaded artifacts into a Docker container and serving it.
+
+#### 💻 Key commands
+### 1. Registering a model from an existing run
+Using the Python API to register a model, creating a new version in the Model Registry.
+```python
+import mlflow
+
+# The URI of the logged model from a specific run
+logged_model_uri = "runs:/<run_id>/model"
+
+# Register the model (creates the entity if it doesn't exist, or adds a new version)
+mlflow.register_model(model_uri=logged_model_uri, name="fraud-detector")
+```
+### 2. Assigning an Alias (The "Champion" tag)
+The Data Scientist assigns an alias to indicate the model's readiness state.
+
+```Python
+from mlflow import MlflowClient
+client = MlflowClient()
+
+# Point the "champion" alias to version 1 of the fraud-detector
+client.set_registered_model_alias("fraud-detector", "champion", "1")
+```
+### 3. DevOps / CI/CD Retrieval
+The Platform Engineer loads the model in the production environment using the stable alias, completely ignoring Run IDs.
+```python
+import mlflow.pyfunc
+
+# Load the model directly from the registry using its semantic alias
+prod_model = mlflow.pyfunc.load_model("models:/fraud-detector@champion")
+```
 ## 🧠 Conclusions and Problem Solutions
 
 - **MLflow server aborts on startup**: The specified backend directory does not exist. **Solution**: Always explicitly create the required parent directories before launching the server process.
@@ -87,3 +137,4 @@ with mlflow.start_run():
 - **Runs are left hanging in "RUNNING" state**: The script crashed before `mlflow.end_run()` was called. **Solution**: Always use the context manager `with mlflow.start_run():`. It automatically handles closing the run (even if an exception occurs) and prevents orphaned runs in the UI.
 - **Custom metrics are missing from the run**: `mlflow.autolog()` only captures standard metrics defined by the framework's default evaluation behavior (e.g., accuracy for sklearn classifiers). **Solution**: Compute your custom metrics manually and log them using `mlflow.log_metric()` inside the same `start_run()` context alongside the autologged `.fit()` call.
 - **Autologging creates too much noise or uploads massive datasets**: Universal `mlflow.autolog()` logs everything by default, including training datasets if supported, which can bloat the artifact store. **Solution**: Use the flavor-specific function (e.g., `mlflow.sklearn.autolog(log_datasets=False)`) and pass specific boolean flags to disable logging for datasets or models.
+- **Hardcoded Run IDs break CI/CD pipelines**: A deployment script fails because a Run ID was deleted or hardcoded as `/runs/abc/model`. **Solution**: Never use Run URIs in production code. Always register the model and use semantic aliases (`models:/model_name@champion`) so the data science team can update the underlying version without breaking the DevOps pipeline.
