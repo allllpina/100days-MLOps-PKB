@@ -129,6 +129,50 @@ import mlflow.pyfunc
 # Load the model directly from the registry using its semantic alias
 prod_model = mlflow.pyfunc.load_model("models:/fraud-detector@champion")
 ```
+
+### 6. Custom Preprocessing and Model Serving (`mlflow.pyfunc`)
+When serving models, raw input data often needs preprocessing (e.g., scaling, tokenization) before inference. Relying on downstream services (or DevOps engineers) to replicate this logic perfectly leads to errors. `mlflow.pyfunc` solves this by packaging both the preprocessing logic and the underlying model into a single, unified wrapper.
+
+
+```python
+import mlflow.pyfunc
+import pandas as pd
+import numpy as np
+
+# 1. Define a custom PythonModel class that encapsulates preprocessing
+class ScaledPredictor(mlflow.pyfunc.PythonModel):
+    def __init__(self, inner_model, mean, std):
+        self.model = inner_model
+        self.mean = mean
+        self.std = std
+
+    # The predict method is the standard universal interface for MLflow deployments
+    def predict(self, context, model_input, params=None):
+        X = np.asarray(model_input, dtype=float)
+        
+        # Step A: Apply custom preprocessing
+        scaled = (X - self.mean) / self.std  
+        
+        # Step B: Pass preprocessed data to the underlying model
+        return self.model.predict(scaled)    
+
+# 2. Load the base model from the registry using its semantic alias
+# This allows the code to remain unchanged even if the "champion" version updates
+inner_model = mlflow.pyfunc.load_model(model_uri="models:/fraud-detector@champion")
+
+# 3. Instantiate the wrapper
+# (In a real training script, mean/std are computed during training, 
+# saved as MLflow artifacts, and loaded into this wrapper).
+predictor = ScaledPredictor(inner_model, computed_mean, computed_std)
+
+# 4. Run batch prediction using the standardized interface
+inputs_df = pd.read_csv("data/inputs.csv")
+predictions = predictor.predict(context=None, model_input=inputs_df.values)
+
+# Attach predictions and save
+inputs_df['prediction'] = predictions
+inputs_df.to_csv("predictions.csv", index=False)
+```
 ## 🧠 Conclusions and Problem Solutions
 
 - **MLflow server aborts on startup**: The specified backend directory does not exist. **Solution**: Always explicitly create the required parent directories before launching the server process.
@@ -138,3 +182,4 @@ prod_model = mlflow.pyfunc.load_model("models:/fraud-detector@champion")
 - **Custom metrics are missing from the run**: `mlflow.autolog()` only captures standard metrics defined by the framework's default evaluation behavior (e.g., accuracy for sklearn classifiers). **Solution**: Compute your custom metrics manually and log them using `mlflow.log_metric()` inside the same `start_run()` context alongside the autologged `.fit()` call.
 - **Autologging creates too much noise or uploads massive datasets**: Universal `mlflow.autolog()` logs everything by default, including training datasets if supported, which can bloat the artifact store. **Solution**: Use the flavor-specific function (e.g., `mlflow.sklearn.autolog(log_datasets=False)`) and pass specific boolean flags to disable logging for datasets or models.
 - **Hardcoded Run IDs break CI/CD pipelines**: A deployment script fails because a Run ID was deleted or hardcoded as `/runs/abc/model`. **Solution**: Never use Run URIs in production code. Always register the model and use semantic aliases (`models:/model_name@champion`) so the data science team can update the underlying version without breaking the DevOps pipeline.
+- **Training-Serving Skew (Inconsistent Preprocessing)**: The DevOps team deploys the model, but prediction accuracy drops in production because they implemented the data scaling logic slightly differently than the Data Scientist did during training. **Solution**: Wrap the underlying model and the scaling logic together using a custom `mlflow.pyfunc.PythonModel` class. This guarantees that the exact same preprocessing runs during inference, and the DevOps team only needs to call `.predict()` on raw data without knowing the internal math.
