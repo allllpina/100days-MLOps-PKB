@@ -173,6 +173,38 @@ predictions = predictor.predict(context=None, model_input=inputs_df.values)
 inputs_df['prediction'] = predictions
 inputs_df.to_csv("predictions.csv", index=False)
 ```
+
+### 7. Reproducible Runs (MLflow Projects) 
+MLflow Projects provide a standard format for packaging reusable data science code. By defining an `MLproject` YAML file, you ensure that any engineer (or CI/CD pipeline) can execute your training script with the exact same entry points and parameters without guessing the command-line arguments. 
+```yaml 
+# Example MLproject file structure name: 
+trainer entry_points: 
+	train: 
+		parameters: 
+			n_estimators: 
+				type: int 
+				default: 100 
+			max_depth: 
+				type: int 
+				default: 5 
+		# The command uses variables injected by MLflow during execution
+		command: > 
+			python train.py 
+			--n_estimators {n_estimators} 
+			--max_depth {max_depth}
+```
+#### 💻 Key commands
+
+### 1. Explicit Parameter Override
+Run the project from the directory containing the MLproject file, overriding the default parameters. (--env-manager=local runs it in the current environment instead of building a new Conda/Docker env).
+```bash
+mlflow run . -e train -P n_estimators=200 -P max_depth=10 --env-manager=local
+```
+### 2. Running with Defaults
+Execute the project using only the default parameter values defined in the MLproject file.
+```bash
+mlflow run . -e train --env-manager=local
+```
 ## 🧠 Conclusions and Problem Solutions
 
 - **MLflow server aborts on startup**: The specified backend directory does not exist. **Solution**: Always explicitly create the required parent directories before launching the server process.
@@ -183,3 +215,5 @@ inputs_df.to_csv("predictions.csv", index=False)
 - **Autologging creates too much noise or uploads massive datasets**: Universal `mlflow.autolog()` logs everything by default, including training datasets if supported, which can bloat the artifact store. **Solution**: Use the flavor-specific function (e.g., `mlflow.sklearn.autolog(log_datasets=False)`) and pass specific boolean flags to disable logging for datasets or models.
 - **Hardcoded Run IDs break CI/CD pipelines**: A deployment script fails because a Run ID was deleted or hardcoded as `/runs/abc/model`. **Solution**: Never use Run URIs in production code. Always register the model and use semantic aliases (`models:/model_name@champion`) so the data science team can update the underlying version without breaking the DevOps pipeline.
 - **Training-Serving Skew (Inconsistent Preprocessing)**: The DevOps team deploys the model, but prediction accuracy drops in production because they implemented the data scaling logic slightly differently than the Data Scientist did during training. **Solution**: Wrap the underlying model and the scaling logic together using a custom `mlflow.pyfunc.PythonModel` class. This guarantees that the exact same preprocessing runs during inference, and the DevOps team only needs to call `.predict()` on raw data without knowing the internal math.
+- - **`error: unrecognized arguments: --n_est 100`**: The `command` section in the `MLproject` file passed an argument flag (`--n_est`) that did not exactly match the `argparse` definition in the target python script (`--n_estimators`). **Solution**: Ensure strict 1:1 mapping between the flag names written in the `MLproject` command template and the arguments expected by the Python script's parser.
+- **`Could not find train among entry points [] or interpret train as a runnable script`**: You executed `mlflow run .` from the wrong directory (e.g., `/tmp`), where no `MLproject` file exists. **Solution**: Always navigate to the root directory of the project (`cd ~/code/trainer`) before running the command, or specify the explicit path (`mlflow run /path/to/project`).
