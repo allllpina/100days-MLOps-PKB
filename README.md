@@ -13,3 +13,4 @@ These notes are structured modularly by core technologies and concepts to serve 
 * **[03. Data Versioning and Pipelines](03_Data_Versioning_and_Pipelines_DVC.md)** *(Days 10-19)*
   `DVC`, `Git`
 * **[04. Experiment Tracking and Registry (MLflow)](04_Experiment_Tracking_and_Registry_MLflow)** _(Days 20-30)_ `MLflow`, `SQLite`
+* **[05. Feature Store and Data Management](05_Feature_Store_Feast)** _(Days 41-42)_ `Feast`, `Parquet`
