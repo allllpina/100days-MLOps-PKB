@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "05_Feature_Store_Feast.md",
+                "file": "README.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "05_Feature_Store_Feast"
+              "title": "README"
             }
           }
         ]
@@ -185,8 +185,9 @@
   },
   "active": "cd0fef8ccf037f16",
   "lastOpenFiles": [
-    "README.md",
+    "06_Security_Quality_and_Containerization.md",
     "05_Feature_Store_Feast.md",
+    "README.md",
     "04_Experiment_Tracking_and_Registry_MLflow.md",
     "03_Data_Versioning_and_Pipelines_DVC.md",
     "02_Project_Architecture_and_Quality.md",
